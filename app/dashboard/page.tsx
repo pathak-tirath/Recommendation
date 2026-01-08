@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { UserButton } from "@clerk/nextjs";
@@ -20,7 +20,10 @@ export default function Dashboard() {
         getOrCreateUser();
     }, [getOrCreateUser]);
 
-    const allRecsData = useQuery(api.recommendations.listAll, {});
+    const allRecsData = useQuery(
+        api.recommendations.listAll,
+        selectedGenre === "all" ? {} : "skip"
+    );
 
     const filteredRecsData = useQuery(
         api.recommendations.listByGenre,
@@ -34,29 +37,30 @@ export default function Dashboard() {
     const updateRecommendation = useMutation(api.recommendations.update);
     const toggleStaffPick = useMutation(api.recommendations.toggleStaffPick);
 
-    const handleAdd = async (data: {
+    const handleAdd = useCallback(async (data: {
         title: string;
         genre: Genre;
         link: string;
         blurb: string;
+        imageId?: Id<"_storage">;
     }) => {
         await addRecommendation(data);
-    };
+    }, [addRecommendation]);
 
-    const handleDelete = async (id: Id<"recommendations">) => {
+    const handleDelete = useCallback(async (id: Id<"recommendations">) => {
         await deleteRecommendation({ id });
-    };
+    }, [deleteRecommendation]);
 
-    const handleEdit = async (
+    const handleEdit = useCallback(async (
         id: Id<"recommendations">,
-        data: { title: string; genre: Genre; link: string; blurb: string }
+        data: { title: string; genre: Genre; link: string; blurb: string; imageId?: Id<"_storage"> }
     ) => {
         await updateRecommendation({ id, ...data });
-    };
+    }, [updateRecommendation]);
 
-    const handleToggleStaffPick = async (id: Id<"recommendations">) => {
+    const handleToggleStaffPick = useCallback(async (id: Id<"recommendations">) => {
         await toggleStaffPick({ id });
-    };
+    }, [toggleStaffPick]);
 
     const isAdmin = activeData?.isAdmin ?? false;
     const currentUserId = activeData?.currentUserId;
