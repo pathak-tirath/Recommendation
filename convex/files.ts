@@ -4,11 +4,7 @@ import { requireAuth, requireAdmin } from "./lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
 import { validateFile, sanitizeFileName } from "./lib/fileValidation";
 
-/**
- * Generate a short-lived upload URL for file uploads.
- * The URL is valid for a short period and allows uploading one file.
- * Rate limited: 10 uploads per minute
- */
+
 export const generateUploadUrl = mutation({
     args: {},
     handler: async (ctx) => {
@@ -21,10 +17,7 @@ export const generateUploadUrl = mutation({
     },
 });
 
-/**
- * Confirm and validate an uploaded file after upload completes.
- * Creates file metadata entry with ownership tracking.
- */
+
 export const confirmUpload = mutation({
     args: {
         storageId: v.id("_storage"),
