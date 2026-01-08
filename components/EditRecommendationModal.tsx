@@ -458,10 +458,27 @@ export default function EditRecommendationModal({
                                 <div className="flex-1">
                                     <input
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
+                                                // Validate file size (5MB max)
+                                                const maxSize = 5 * 1024 * 1024;
+                                                if (file.size > maxSize) {
+                                                    setSubmitError("File size exceeds 5MB limit");
+                                                    e.target.value = "";
+                                                    return;
+                                                }
+
+                                                // Validate file type
+                                                const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+                                                if (!allowedTypes.includes(file.type)) {
+                                                    setSubmitError("Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed");
+                                                    e.target.value = "";
+                                                    return;
+                                                }
+
+                                                setSubmitError("");
                                                 setSelectedImage(file);
                                                 setImagePreview(URL.createObjectURL(file));
                                                 setRemoveImage(false);
@@ -477,7 +494,7 @@ export default function EditRecommendationModal({
                                         disabled={isSubmitting}
                                     />
                                     <p className="mt-1 text-xs text-text-muted">
-                                        Change poster (JPG, PNG, WebP up to 5MB)
+                                        Change poster (JPG, PNG, WebP, GIF up to 5MB)
                                     </p>
                                 </div>
                             </div>

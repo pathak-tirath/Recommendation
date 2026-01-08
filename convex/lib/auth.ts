@@ -4,7 +4,6 @@ import { Doc } from "../_generated/dataModel";
 export type Role = "admin" | "user";
 
 export const ADMIN_EMAILS = [
-    "pathak.tirath.work@gmail.com",
     "hypershelf@yopmail.com"
 ];
 
