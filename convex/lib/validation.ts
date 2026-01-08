@@ -5,7 +5,17 @@ export interface ValidationResult {
 }
 
 export function validateTitle(title: string): ValidationResult {
+    const trimmed = title.trim();
     const sanitized = sanitizeString(title);
+
+    // Check if content was stripped (potential XSS attempt)
+    if (trimmed.length > 0 && sanitized.length < trimmed.length * 0.5) {
+        return {
+            isValid: false,
+            error: "Title contains invalid characters or HTML tags that are not allowed",
+            sanitized,
+        };
+    }
 
     if (sanitized.length < 3) {
         return {
@@ -28,7 +38,17 @@ export function validateTitle(title: string): ValidationResult {
 
 
 export function validateBlurb(blurb: string): ValidationResult {
+    const trimmed = blurb.trim();
     const sanitized = sanitizeString(blurb);
+
+    // Check if content was stripped (potential XSS attempt)
+    if (trimmed.length > 0 && sanitized.length < trimmed.length * 0.5) {
+        return {
+            isValid: false,
+            error: "Description contains invalid characters or HTML tags that are not allowed",
+            sanitized,
+        };
+    }
 
     if (sanitized.length < 10) {
         return {

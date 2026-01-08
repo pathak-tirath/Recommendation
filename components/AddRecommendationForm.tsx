@@ -149,11 +149,18 @@ export default function AddRecommendationForm({
             setImageError("");
             setSubmitSuccess(true);
         } catch (err) {
-
             let message = "Failed to add recommendation";
             if (err instanceof Error) {
-                const match = err.message.match(/Error:\s*(.+?)(?:\s*at\s|$)/);
-                message = match ? match[1].trim() : err.message;
+                // Extract user-friendly message from Convex errors
+                // Convex errors look like: "[CONVEX M(...)] Uncaught Error: <message>"
+                // Look for the last "Error:" and take everything after it
+                const errorMatch = err.message.match(/Error:\s*([^]+)$/);
+                if (errorMatch) {
+                    // Remove any stack trace info (lines starting with "at ")
+                    message = errorMatch[1].split(/\n\s*at\s/)[0].trim();
+                } else {
+                    message = err.message;
+                }
             }
             setSubmitError(message);
         }
@@ -202,9 +209,9 @@ export default function AddRecommendationForm({
 
             {/* Submit Error */}
             {submitError && (
-                <div className="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 mb-4 text-sm flex items-center gap-2">
+                <div className="bg-danger/10 border border-danger/30 text-danger rounded-lg p-3 mb-4 text-sm flex items-start gap-2">
                     <svg
-                        className="w-5 h-5"
+                        className="w-5 h-5 shrink-0 mt-0.5"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -216,7 +223,7 @@ export default function AddRecommendationForm({
                             d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                     </svg>
-                    {submitError}
+                    <span className="break-words">{submitError}</span>
                 </div>
             )}
 

@@ -38,6 +38,10 @@ I heavily optimized the application to ensure sub-100ms response times:
     *   *Implementation:* Refactored the dashboard to only execute *one* database query at a time (switching between "All" and "Filtered" modes) rather than running both simultaneously.
     *   *Result:* **50% reduction** in database load and network requests.
 
+*   **Infinite Scrolling Pagination:**
+    *   *Implementation:* Replaced full-list fetching with Convex's paginated queries (`paginatedList`, `paginatedListByGenre`). Uses Intersection Observer API to detect scroll position and automatically load more items.
+    *   *Result:* Initial load reduced to 2 items, with seamless on-demand loading. Fixed-height container (70vh) prevents page growth.
+
 *   **React Memoization (`useCallback`):**
     *   *Implementation:* Wrapped all event handlers (add, delete, edit) in stable references.
     *   *Result:* Prevented the `RecommendationCard` list from re-rendering entirely when interacting with a single item. This reduced render cycles by **30-70%**.
@@ -52,7 +56,7 @@ I heavily optimized the application to ensure sub-100ms response times:
 
 *   **`confirmUpload` (Mutation):** The core security checkpoint. It validates the uploaded file on the server, creates the metadata record, establishes ownership, and auto-deletes the file if validation fails.
 *   **`cleanupOrphanedFiles` (Mutation - Admin):** A maintenance tool that scans for files no longer linked to any recommendation and safely removes them to free up storage space.
-*   **`listByGenre` (Query):** An optimized, indexed query that instantly filters content without scanning the entire database.
+*   **`paginatedList` / `paginatedListByGenre` (Query):** Optimized paginated queries using Convex's cursor-based pagination for efficient infinite scrolling.
 *   **`getOrCreateUser` (Mutation):** A synchronization handler that ensures Clerk authentication data is perfectly synced with the internal Convex user database.
 *   **`checkRateLimit` (Helper):** A reusable utility that enforces API limits per user/action, protecting the backend from spam.
 

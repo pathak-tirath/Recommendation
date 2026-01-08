@@ -74,6 +74,12 @@ The application is engineered for speed (sub-100ms interactions):
 * Smart Data Fetching (Conditional Queries):
   - Refactored the dashboard to execute only the necessary database query at any given time (Filtered vs. All), reducing DB load by 50%.
 
+* Infinite Scrolling Pagination:
+  - Implemented cursor-based pagination using Convex's `paginatedList` and `paginatedListByGenre` queries.
+  - Uses Intersection Observer API to detect when user scrolls near the bottom and automatically loads more items.
+  - Initial load limited to 2 items for faster first paint. Fixed 70vh container prevents endless page growth.
+  - Recommendations sorted descending by creation time (newest first).
+
 * Render Optimization (React Memoization):
   - Wrapped critical event handlers in `useCallback`.
   - Result: Prevents 30-70% of unnecessary re-renders in the main recommendation list when user interacts with a single card.
