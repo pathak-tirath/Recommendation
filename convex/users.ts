@@ -24,7 +24,7 @@ export const getOrCreate = mutation({
             identity.email && ADMIN_EMAILS.includes(identity.email);
 
         if (existingUser) {
-            // Optional: Check if we need to upgrade their role
+
             if (shouldBeAdmin && existingUser.role !== "admin") {
                 await ctx.db.patch(existingUser._id, { role: "admin" });
             }

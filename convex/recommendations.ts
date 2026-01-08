@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { genreValidator } from "./schema";
 import { getCurrentUser, requireAuth, requireAdmin } from "./lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
@@ -20,33 +21,9 @@ export const listLatest = query({
     },
 });
 
-export const listAll = query({
-    args: {},
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) {
-            throw new Error("Authentication required");
-        }
-
-        const recommendations = await ctx.db
-            .query("recommendations")
-            .order("desc")
-            .collect();
-
-        const currentUser = await getCurrentUser(ctx);
-        const userIsAdmin = currentUser?.role === "admin";
-
-        return {
-            recommendations: recommendations.reverse(),
-            isAdmin: userIsAdmin,
-            currentUserId: currentUser?._id,
-        };
-    },
-});
-
-export const listByGenre = query({
+export const paginatedList = query({
     args: {
-        genre: genreValidator,
+        paginationOpts: paginationOptsValidator,
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -54,17 +31,44 @@ export const listByGenre = query({
             throw new Error("Authentication required");
         }
 
-        const recommendations = await ctx.db
+        const results = await ctx.db
             .query("recommendations")
-            .withIndex("by_genre", (q) => q.eq("genre", args.genre))
             .order("desc")
-            .collect();
+            .paginate(args.paginationOpts);
 
         const currentUser = await getCurrentUser(ctx);
         const userIsAdmin = currentUser?.role === "admin";
 
         return {
-            recommendations: recommendations.reverse(),
+            ...results,
+            isAdmin: userIsAdmin,
+            currentUserId: currentUser?._id,
+        };
+    },
+});
+
+export const paginatedListByGenre = query({
+    args: {
+        genre: genreValidator,
+        paginationOpts: paginationOptsValidator,
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("Authentication required");
+        }
+
+        const results = await ctx.db
+            .query("recommendations")
+            .withIndex("by_genre", (q) => q.eq("genre", args.genre))
+            .order("desc")
+            .paginate(args.paginationOpts);
+
+        const currentUser = await getCurrentUser(ctx);
+        const userIsAdmin = currentUser?.role === "admin";
+
+        return {
+            ...results,
             isAdmin: userIsAdmin,
             currentUserId: currentUser?._id,
         };

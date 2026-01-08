@@ -402,14 +402,18 @@ export default function AddRecommendationForm({
                                         const img = new Image();
                                         const objectUrl = URL.createObjectURL(file);
                                         img.onload = () => {
-                                            URL.revokeObjectURL(objectUrl);
                                             const maxDimension = 4096;
                                             if (img.width > maxDimension || img.height > maxDimension) {
+                                                URL.revokeObjectURL(objectUrl);
                                                 setImageError(`Image dimensions exceed ${maxDimension}x${maxDimension} pixels`);
                                                 setSelectedImage(null);
                                                 setImagePreview(null);
                                                 e.target.value = "";
                                             } else {
+                                                // Revoke previous preview URL if exists
+                                                if (imagePreview) {
+                                                    URL.revokeObjectURL(imagePreview);
+                                                }
                                                 setSelectedImage(file);
                                                 setImagePreview(objectUrl);
                                             }

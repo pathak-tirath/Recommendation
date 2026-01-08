@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
@@ -11,8 +11,12 @@ import GenreFilter from "@/components/GenreFilter";
 import { Id } from "@/convex/_generated/dataModel";
 import { Genre, Recommendation } from "@/types";
 
+const PAGE_SIZE = 2;
+
 export default function Dashboard() {
     const [selectedGenre, setSelectedGenre] = useState<Genre | "all">("all");
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const getOrCreateUser = useMutation(api.users.getOrCreate);
     const currentUser = useQuery(api.users.getCurrent);
@@ -21,17 +25,46 @@ export default function Dashboard() {
         getOrCreateUser();
     }, [getOrCreateUser]);
 
-    const allRecsData = useQuery(
-        api.recommendations.listAll,
-        selectedGenre === "all" ? {} : "skip"
+    // Paginated query for all recommendations
+    const allRecsResult = usePaginatedQuery(
+        api.recommendations.paginatedList,
+        selectedGenre === "all" ? {} : "skip",
+        { initialNumItems: PAGE_SIZE }
     );
 
-    const filteredRecsData = useQuery(
-        api.recommendations.listByGenre,
-        selectedGenre !== "all" ? { genre: selectedGenre } : "skip"
+    // Paginated query for filtered recommendations
+    const filteredRecsResult = usePaginatedQuery(
+        api.recommendations.paginatedListByGenre,
+        selectedGenre !== "all" ? { genre: selectedGenre } : "skip",
+        { initialNumItems: PAGE_SIZE }
     );
 
-    const activeData = selectedGenre === "all" ? allRecsData : filteredRecsData;
+    const activeResult = selectedGenre === "all" ? allRecsResult : filteredRecsResult;
+
+    // Handle infinite scroll with Intersection Observer
+    useEffect(() => {
+        const scrollContainer = scrollContainerRef.current;
+        const loadMoreElement = loadMoreRef.current;
+
+        if (!loadMoreElement) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const [entry] = entries;
+                if (entry.isIntersecting && activeResult.status === "CanLoadMore") {
+                    activeResult.loadMore(PAGE_SIZE);
+                }
+            },
+            {
+                root: scrollContainer,
+                rootMargin: "100px"
+            }
+        );
+
+        observer.observe(loadMoreElement);
+
+        return () => observer.disconnect();
+    }, [activeResult]);
 
     const addRecommendation = useMutation(api.recommendations.add);
     const deleteRecommendation = useMutation(api.recommendations.deleteOwn);
@@ -63,9 +96,12 @@ export default function Dashboard() {
         await toggleStaffPick({ id });
     }, [toggleStaffPick]);
 
-    const isAdmin = activeData?.isAdmin ?? false;
-    const currentUserId = activeData?.currentUserId;
-    const recommendations = activeData?.recommendations ?? [];
+    // Extract data from paginated result
+    const recommendations = activeResult.results ?? [];
+
+    // Get admin status and user ID from the current user query
+    const isAdmin = currentUser?.role === "admin";
+    const currentUserId = currentUser?._id;
 
     return (
         <div className="min-h-screen">
@@ -120,8 +156,8 @@ export default function Dashboard() {
                             />
                         </div>
 
-                        {activeData === undefined ? (
-                            <div className="space-y-4">
+                        {activeResult.status === "LoadingFirstPage" ? (
+                            <div className="h-[70vh] overflow-y-auto space-y-4 pr-2">
                                 {[...Array(3)].map((_, i) => (
                                     <div key={i} className="glass-card p-5">
                                         <div className="skeleton h-6 w-48 mb-3" />
@@ -146,7 +182,7 @@ export default function Dashboard() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div ref={scrollContainerRef} className="h-[70vh] overflow-y-auto space-y-4 pr-2 scrollbar-thin">
                                 {recommendations.map((rec) => (
                                     <RecommendationCard
                                         key={rec._id}
@@ -159,6 +195,23 @@ export default function Dashboard() {
                                         onToggleStaffPick={handleToggleStaffPick}
                                     />
                                 ))}
+
+                                {/* Infinite scroll trigger */}
+                                <div ref={loadMoreRef} className="py-4">
+                                    {activeResult.status === "LoadingMore" && (
+                                        <div className="flex justify-center">
+                                            <div className="flex items-center gap-2 text-text-muted">
+                                                <div className="w-5 h-5 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+                                                <span>Loading more...</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {activeResult.status === "Exhausted" && recommendations.length > PAGE_SIZE && (
+                                        <p className="text-center text-text-muted text-sm">
+                                            You&apos;ve reached the end! 🎉
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -167,3 +220,4 @@ export default function Dashboard() {
         </div>
     );
 }
+
