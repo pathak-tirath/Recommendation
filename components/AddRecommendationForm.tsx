@@ -74,8 +74,10 @@ export default function AddRecommendationForm({
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageError, setImageError] = useState<string>("");
 
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const confirmUpload = useMutation(api.files.confirmUpload);
 
     const {
         register,
@@ -85,7 +87,7 @@ export default function AddRecommendationForm({
         formState: { errors, isSubmitting, isValid, touchedFields, dirtyFields },
     } = useForm<RecommendationFormData>({
         resolver: zodResolver(recommendationSchema),
-        mode: "onChange", // Validate on change for real-time feedback
+        mode: "onChange",
         defaultValues: {
             title: "",
             genre: "action",
@@ -98,7 +100,6 @@ export default function AddRecommendationForm({
     const blurbValue = watch("blurb");
     const linkValue = watch("link");
 
-    // Clear success message after 3 seconds
     useEffect(() => {
         if (submitSuccess) {
             const timer = setTimeout(() => setSubmitSuccess(false), 3000);
@@ -112,10 +113,8 @@ export default function AddRecommendationForm({
             let imageId: Id<"_storage"> | undefined;
 
             if (selectedImage) {
-                // 1. Get a short-lived upload URL
                 const postUrl = await generateUploadUrl();
 
-                // 2. POST the file to the URL
                 const result = await fetch(postUrl, {
                     method: "POST",
                     headers: { "Content-Type": selectedImage.type },
@@ -127,7 +126,14 @@ export default function AddRecommendationForm({
                     throw new Error(`Upload failed: ${JSON.stringify(json)}`);
                 }
 
-                imageId = json.storageId;
+                const confirmation = await confirmUpload({
+                    storageId: json.storageId,
+                    fileName: selectedImage.name,
+                    fileSize: selectedImage.size,
+                    mimeType: selectedImage.type,
+                });
+
+                imageId = confirmation.storageId;
             }
 
             await onSubmit({
@@ -140,10 +146,10 @@ export default function AddRecommendationForm({
             reset();
             setSelectedImage(null);
             setImagePreview(null);
+            setImageError("");
             setSubmitSuccess(true);
         } catch (err) {
-            // Extract user-friendly message from Convex errors
-            // Convex errors look like: "[CONVEX M(...)] Server Error Uncaught Error: <message>"
+
             let message = "Failed to add recommendation";
             if (err instanceof Error) {
                 const match = err.message.match(/Error:\s*(.+?)(?:\s*at\s|$)/);
@@ -360,6 +366,7 @@ export default function AddRecommendationForm({
                                     onClick={() => {
                                         setSelectedImage(null);
                                         setImagePreview(null);
+                                        setImageError("");
                                     }}
                                     className="absolute -top-2 -right-2 bg-danger text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
@@ -372,12 +379,47 @@ export default function AddRecommendationForm({
                         <div className="flex-1">
                             <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
                                 onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                        setSelectedImage(file);
-                                        setImagePreview(URL.createObjectURL(file));
+                                        setImageError("");
+
+                                        const maxSize = 5 * 1024 * 1024;
+                                        if (file.size > maxSize) {
+                                            setImageError("File size exceeds 5MB limit");
+                                            e.target.value = "";
+                                            return;
+                                        }
+
+                                        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+                                        if (!allowedTypes.includes(file.type)) {
+                                            setImageError("Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed");
+                                            e.target.value = "";
+                                            return;
+                                        }
+
+                                        const img = new Image();
+                                        const objectUrl = URL.createObjectURL(file);
+                                        img.onload = () => {
+                                            URL.revokeObjectURL(objectUrl);
+                                            const maxDimension = 4096;
+                                            if (img.width > maxDimension || img.height > maxDimension) {
+                                                setImageError(`Image dimensions exceed ${maxDimension}x${maxDimension} pixels`);
+                                                setSelectedImage(null);
+                                                setImagePreview(null);
+                                                e.target.value = "";
+                                            } else {
+                                                setSelectedImage(file);
+                                                setImagePreview(objectUrl);
+                                            }
+                                        };
+                                        img.onerror = () => {
+                                            URL.revokeObjectURL(objectUrl);
+                                            setImageError("Invalid image file");
+                                            e.target.value = "";
+                                        };
+                                        img.src = objectUrl;
                                     }
                                 }}
                                 className="block w-full text-sm text-text-muted
@@ -389,9 +431,22 @@ export default function AddRecommendationForm({
                                     transition-all"
                                 disabled={isSubmitting}
                             />
-                            <p className="mt-1 text-xs text-text-muted">
-                                JPG, PNG, WebP up to 5MB
-                            </p>
+                            {imageError ? (
+                                <p className="mt-1 text-xs text-danger flex items-center gap-1 animate-fade-in">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            fillRule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                            clipRule="evenodd"
+                                        />
+                                    </svg>
+                                    {imageError}
+                                </p>
+                            ) : (
+                                <p className="mt-1 text-xs text-text-muted">
+                                    JPG, PNG, WebP, GIF up to 5MB (max 4096x4096px)
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>

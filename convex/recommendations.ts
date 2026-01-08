@@ -5,9 +5,6 @@ import { getCurrentUser, requireAuth, requireAdmin } from "./lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "./lib/rateLimit";
 import { validateRecommendation } from "./lib/validation";
 
-/**
- * Get the latest recommendations (public, for homepage).
- */
 export const listLatest = query({
     args: {
         limit: v.optional(v.number()),
@@ -23,9 +20,6 @@ export const listLatest = query({
     },
 });
 
-/**
- * Get all recommendations (authenticated).
- */
 export const listAll = query({
     args: {},
     handler: async (ctx) => {
@@ -50,9 +44,6 @@ export const listAll = query({
     },
 });
 
-/**
- * Get recommendations filtered by genre (authenticated).
- */
 export const listByGenre = query({
     args: {
         genre: genreValidator,
@@ -80,11 +71,6 @@ export const listByGenre = query({
     },
 });
 
-/**
- * Add a new recommendation (authenticated).
- * - Rate limited: 10 requests per minute
- * - Input validated: title (3-100 chars), blurb (10-500 chars), valid URL
- */
 export const add = mutation({
     args: {
         title: v.string(),
@@ -95,11 +81,8 @@ export const add = mutation({
     },
     handler: async (ctx, args) => {
         const user = await requireAuth(ctx);
-
-        // Rate limiting
         await checkRateLimit(ctx, user._id, RATE_LIMITS.ADD_RECOMMENDATION);
 
-        // Input validation
         const validation = validateRecommendation({
             title: args.title,
             blurb: args.blurb,
@@ -107,6 +90,25 @@ export const add = mutation({
         });
         if (!validation.isValid) {
             throw new Error(validation.error);
+        }
+
+        if (args.imageId) {
+            const fileMetadata = await ctx.db
+                .query("fileMetadata")
+                .withIndex("by_storageId", (q) => q.eq("storageId", args.imageId!))
+                .unique();
+
+            if (!fileMetadata) {
+                throw new Error("Image file not found");
+            }
+
+            if (fileMetadata.userId !== user._id && user.role !== "admin") {
+                throw new Error("You don't have permission to use this image");
+            }
+
+            await ctx.db.patch(fileMetadata._id, {
+                isOrphaned: false,
+            });
         }
 
         const id = await ctx.db.insert("recommendations", {
@@ -124,10 +126,6 @@ export const add = mutation({
     },
 });
 
-/**
- * Delete own recommendation (authenticated).
- * - Rate limited: 10 requests per minute
- */
 export const deleteOwn = mutation({
     args: {
         id: v.id("recommendations"),
@@ -147,14 +145,38 @@ export const deleteOwn = mutation({
             throw new Error("You can only delete your own recommendations");
         }
 
+        // Mark image as orphaned if it exists
+        if (recommendation.imageId) {
+            const fileMetadata = await ctx.db
+                .query("fileMetadata")
+                .withIndex("by_storageId", (q) => q.eq("storageId", recommendation.imageId!))
+                .unique();
+
+            if (fileMetadata) {
+                // Check if image is used in other recommendations
+                const otherRecommendations = await ctx.db
+                    .query("recommendations")
+                    .filter((q) =>
+                        q.and(
+                            q.eq(q.field("imageId"), recommendation.imageId),
+                            q.neq(q.field("_id"), args.id)
+                        )
+                    )
+                    .collect();
+
+                // Only mark as orphaned if not used elsewhere
+                if (otherRecommendations.length === 0) {
+                    await ctx.db.patch(fileMetadata._id, {
+                        isOrphaned: true,
+                    });
+                }
+            }
+        }
+
         await ctx.db.delete(args.id);
     },
 });
 
-/**
- * Delete any recommendation (admin only).
- * - Rate limited: 5 requests per minute
- */
 export const deleteAny = mutation({
     args: {
         id: v.id("recommendations"),
@@ -170,14 +192,38 @@ export const deleteAny = mutation({
             throw new Error("Recommendation not found");
         }
 
+        // Mark image as orphaned if it exists
+        if (recommendation.imageId) {
+            const fileMetadata = await ctx.db
+                .query("fileMetadata")
+                .withIndex("by_storageId", (q) => q.eq("storageId", recommendation.imageId!))
+                .unique();
+
+            if (fileMetadata) {
+                // Check if image is used in other recommendations
+                const otherRecommendations = await ctx.db
+                    .query("recommendations")
+                    .filter((q) =>
+                        q.and(
+                            q.eq(q.field("imageId"), recommendation.imageId),
+                            q.neq(q.field("_id"), args.id)
+                        )
+                    )
+                    .collect();
+
+                // Only mark as orphaned if not used elsewhere
+                if (otherRecommendations.length === 0) {
+                    await ctx.db.patch(fileMetadata._id, {
+                        isOrphaned: true,
+                    });
+                }
+            }
+        }
+
         await ctx.db.delete(args.id);
     },
 });
 
-/**
- * Toggle staff pick status (admin only).
- * - Rate limited: 20 requests per minute
- */
 export const toggleStaffPick = mutation({
     args: {
         id: v.id("recommendations"),
@@ -199,11 +245,6 @@ export const toggleStaffPick = mutation({
     },
 });
 
-/**
- * Update a recommendation (owner or admin).
- * - Rate limited: 20 requests per minute
- * - Input validated: title (3-100 chars), blurb (10-500 chars), valid URL
- */
 export const update = mutation({
     args: {
         id: v.id("recommendations"),
@@ -237,6 +278,55 @@ export const update = mutation({
         // Check permission: owner or admin
         if (recommendation.userId !== user._id && user.role !== "admin") {
             throw new Error("You can only edit your own recommendations");
+        }
+
+        // Verify file ownership if new image is provided
+        if (args.imageId) {
+            const fileMetadata = await ctx.db
+                .query("fileMetadata")
+                .withIndex("by_storageId", (q) => q.eq("storageId", args.imageId!))
+                .unique();
+
+            if (!fileMetadata) {
+                throw new Error("Image file not found");
+            }
+
+            if (fileMetadata.userId !== user._id && user.role !== "admin") {
+                throw new Error("You don't have permission to use this image");
+            }
+
+            // Mark new file as not orphaned
+            await ctx.db.patch(fileMetadata._id, {
+                isOrphaned: false,
+            });
+        }
+
+        // Handle old image if being replaced
+        if (recommendation.imageId && recommendation.imageId !== args.imageId) {
+            const oldFileMetadata = await ctx.db
+                .query("fileMetadata")
+                .withIndex("by_storageId", (q) => q.eq("storageId", recommendation.imageId!))
+                .unique();
+
+            if (oldFileMetadata) {
+                // Check if old image is used in other recommendations
+                const otherRecommendations = await ctx.db
+                    .query("recommendations")
+                    .filter((q) =>
+                        q.and(
+                            q.eq(q.field("imageId"), recommendation.imageId),
+                            q.neq(q.field("_id"), args.id)
+                        )
+                    )
+                    .collect();
+
+                // Only mark as orphaned if not used elsewhere
+                if (otherRecommendations.length === 0) {
+                    await ctx.db.patch(oldFileMetadata._id, {
+                        isOrphaned: true,
+                    });
+                }
+            }
         }
 
         await ctx.db.patch(args.id, {

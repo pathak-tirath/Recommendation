@@ -141,7 +141,6 @@ export default function Dashboard() {
                                 </p>
                             </div>
                         ) : (
-                            // Recommendations list
                             <div className="space-y-4">
                                 {recommendations.map((rec) => (
                                     <RecommendationCard

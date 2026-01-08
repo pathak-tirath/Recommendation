@@ -8,10 +8,6 @@ interface RateLimitConfig {
     maxRequests: number;
 }
 
-/**
- * Check and update rate limit for a user action.
- * Throws an error if rate limit is exceeded.
- */
 export async function checkRateLimit(
     ctx: MutationCtx,
     userId: Id<"users">,
@@ -20,7 +16,6 @@ export async function checkRateLimit(
     const now = Date.now();
     const windowStart = now - RATE_LIMIT_WINDOW_MS;
 
-    // Find existing rate limit record
     const existing = await ctx.db
         .query("rateLimits")
         .withIndex("by_userId_action", (q) =>
@@ -29,15 +24,12 @@ export async function checkRateLimit(
         .unique();
 
     if (existing) {
-        // Check if we're in a new window
         if (existing.windowStart < windowStart) {
-            // Reset the counter for new window
             await ctx.db.patch(existing._id, {
                 count: 1,
                 windowStart: now,
             });
         } else {
-            // Still in current window
             if (existing.count >= config.maxRequests) {
                 throw new Error(
                     `Whoa, slow down! 🚀 You've reached the limit of ${config.maxRequests} requests per minute. Please wait a moment and try again.`
@@ -48,7 +40,6 @@ export async function checkRateLimit(
             });
         }
     } else {
-        // Create new rate limit record
         await ctx.db.insert("rateLimits", {
             userId,
             action: config.action,
@@ -58,13 +49,13 @@ export async function checkRateLimit(
     }
 }
 
-/**
- * Pre-configured rate limits for different actions
- */
 export const RATE_LIMITS = {
     ADD_RECOMMENDATION: { action: "add_recommendation", maxRequests: 10 },
     UPDATE_RECOMMENDATION: { action: "update_recommendation", maxRequests: 2 },
     DELETE_RECOMMENDATION: { action: "delete_recommendation", maxRequests: 10 },
     ADMIN_DELETE: { action: "admin_delete", maxRequests: 5 },
     TOGGLE_STAFF_PICK: { action: "toggle_staff_pick", maxRequests: 20 },
+    UPLOAD_FILE: { action: "upload_file", maxRequests: 10 },
+    DELETE_FILE: { action: "delete_file", maxRequests: 10 },
+    CLEANUP_FILES: { action: "cleanup_files", maxRequests: 2 },
 } as const;

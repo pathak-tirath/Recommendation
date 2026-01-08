@@ -10,6 +10,7 @@
 
 import type * as files from "../files.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_fileValidation from "../lib/fileValidation.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_validation from "../lib/validation.js";
 import type * as recommendations from "../recommendations.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   files: typeof files;
   "lib/auth": typeof lib_auth;
+  "lib/fileValidation": typeof lib_fileValidation;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/validation": typeof lib_validation;
   recommendations: typeof recommendations;

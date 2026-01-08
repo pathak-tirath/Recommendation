@@ -41,4 +41,17 @@ export default defineSchema({
     count: v.number(),
     windowStart: v.number(),
   }).index("by_userId_action", ["userId", "action"]),
+
+  fileMetadata: defineTable({
+    storageId: v.id("_storage"),
+    userId: v.id("users"),
+    fileName: v.string(),
+    fileSize: v.number(),
+    mimeType: v.string(),
+    uploadedAt: v.number(),
+    isOrphaned: v.boolean(),
+  })
+    .index("by_storageId", ["storageId"])
+    .index("by_userId", ["userId"])
+    .index("by_orphaned", ["isOrphaned"]),
 });
