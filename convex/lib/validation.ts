@@ -1,10 +1,8 @@
-
 export interface ValidationResult {
     isValid: boolean;
     error?: string;
     sanitized: string;
 }
-
 
 export function validateTitle(title: string): ValidationResult {
     const sanitized = sanitizeString(title);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Genre } from "./RecommendationCard";
+import { Genre } from "@/types";
 
 const GENRES: Genre[] = [
     "horror",

@@ -5,10 +5,11 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import RecommendationCard, { Recommendation, Genre } from "@/components/RecommendationCard";
+import RecommendationCard from "@/components/RecommendationCard";
 import AddRecommendationForm from "@/components/AddRecommendationForm";
 import GenreFilter from "@/components/GenreFilter";
 import { Id } from "@/convex/_generated/dataModel";
+import { Genre, Recommendation } from "@/types";
 
 export default function Dashboard() {
     const [selectedGenre, setSelectedGenre] = useState<Genre | "all">("all");

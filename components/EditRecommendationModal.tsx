@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Genre, Recommendation } from "./RecommendationCard";
+import { Genre, Recommendation } from "@/types";
 
 const GENRES: Genre[] = [
     "horror",

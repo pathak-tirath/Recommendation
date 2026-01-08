@@ -1,3 +1,13 @@
+export interface FileValidationResult {
+    isValid: boolean;
+    error?: string;
+}
+
+export interface ImageValidationResult extends FileValidationResult {
+    width?: number;
+    height?: number;
+}
+
 export const FILE_VALIDATION = {
     MAX_FILE_SIZE: 5 * 1024 * 1024,
     MAX_IMAGE_DIMENSION: 4096,
@@ -26,9 +36,6 @@ export interface ImageValidationResult extends FileValidationResult {
     height?: number;
 }
 
-/**
- * Validate file size
- */
 export function validateFileSize(fileSize: number): FileValidationResult {
     if (fileSize <= 0) {
         return {
@@ -48,9 +55,6 @@ export function validateFileSize(fileSize: number): FileValidationResult {
     return { isValid: true };
 }
 
-/**
- * Validate MIME type
- */
 export function validateMimeType(mimeType: string): FileValidationResult {
     if (!mimeType) {
         return {
@@ -71,9 +75,6 @@ export function validateMimeType(mimeType: string): FileValidationResult {
     return { isValid: true };
 }
 
-/**
- * Validate file extension
- */
 export function validateFileExtension(fileName: string): FileValidationResult {
     if (!fileName) {
         return {
@@ -101,10 +102,6 @@ export function validateFileExtension(fileName: string): FileValidationResult {
     return { isValid: true };
 }
 
-/**
- * Validate image dimensions using browser Image API
- * Note: This should be called client-side before upload
- */
 export function validateImageDimensions(
     width: number,
     height: number

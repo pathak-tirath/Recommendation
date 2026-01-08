@@ -4,31 +4,9 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
+import { Genre, Recommendation } from "@/types";
 import ConfirmModal from "./ConfirmModal";
 import EditRecommendationModal from "./EditRecommendationModal";
-
-export type Genre =
-    | "horror"
-    | "action"
-    | "comedy"
-    | "drama"
-    | "sci-fi"
-    | "romance"
-    | "thriller"
-    | "documentary";
-
-export interface Recommendation {
-    _id: Id<"recommendations">;
-    _creationTime: number;
-    title: string;
-    genre: Genre;
-    link: string;
-    blurb: string;
-    userId: Id<"users">;
-    userName: string;
-    isStaffPick: boolean;
-    imageId?: Id<"_storage">;
-}
 
 interface RecommendationCardProps {
     recommendation: Recommendation;
