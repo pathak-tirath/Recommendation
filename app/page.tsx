@@ -2,10 +2,11 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { SignInButton } from "@clerk/nextjs";
-import RecommendationCard, { Recommendation } from "@/components/RecommendationCard";
+import { SignInButton, UserButton } from "@clerk/nextjs";
+import RecommendationCard from "@/components/RecommendationCard";
 import Link from "next/link";
 import { Authenticated, Unauthenticated } from "convex/react";
+import { Recommendation } from "@/types";
 
 export default function Home() {
   const latestRecs = useQuery(api.recommendations.listLatest, { limit: 5 });
@@ -23,6 +24,7 @@ export default function Home() {
               <Link href="/dashboard" className="btn-primary text-sm">
                 Post Your Hype
               </Link>
+              <UserButton afterSignOutUrl="/" />
             </Authenticated>
             <Unauthenticated>
               <SignInButton mode="modal">
